@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  THEOS: /opt/theos
+  THEOS: /home/runner/theos
 
 jobs:
   build:
@@ -15,18 +15,11 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
-        with:
-          submodules: true
 
       - name: Install dependencies
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y build-essential fakeroot perl rsync git curl file unzip
-
-      - name: Install Theos
-        run: |
-          sudo git clone --recursive https://github.com/theos/theos.git $THEOS
-          sudo chown -R $USER:$USER $THEOS
+          sudo apt-get install -y build-essential fakeroot perl rsync git curl file unzip xz-utils
 
       - name: Install ldid
         run: |
@@ -34,12 +27,25 @@ jobs:
           sudo mv /tmp/ldid /usr/local/bin/ldid
           sudo chmod +x /usr/local/bin/ldid
 
+      - name: Install Theos (with toolchain)
+        run: |
+          # 使用 Theos 官方安装脚本，会自动下载编译工具链
+          bash -c "$(curl -fsSL https://raw.githubusercontent.com/theos/theos/master/bin/install-theos)"
+          # 安装脚本默认把 Theos 装到 ~/theos，设置环境变量
+          echo "THEOS=$HOME/theos" >> $GITHUB_ENV
+          echo "/home/runner/theos/bin" >> $GITHUB_PATH
+
       - name: Download iOS SDK
         run: |
-          curl -LO https://github.com/theos/sdks/archive/refs/heads/master.zip
-          unzip -q master.zip -d /tmp/
-          cp -r /tmp/sdks-master/iPhoneOS14.5.sdk $THEOS/sdks/ 2>/dev/null || cp -r /tmp/sdks-master/iPhoneOS*.sdk $THEOS/sdks/
-          rm -rf master.zip /tmp/sdks-master
+          curl -L -o /tmp/sdks.zip https://github.com/theos/sdks/archive/refs/heads/master.zip
+          unzip -q /tmp/sdks.zip -d /tmp/
+          # 优先用 14.5 SDK，没有就用最新的
+          if [ -d "/tmp/sdks-master/iPhoneOS14.5.sdk" ]; then
+            cp -r /tmp/sdks-master/iPhoneOS14.5.sdk $THEOS/sdks/
+          else
+            cp -r /tmp/sdks-master/iPhoneOS*.sdk $THEOS/sdks/
+          fi
+          rm -rf /tmp/sdks.zip /tmp/sdks-master
 
       - name: Build tweak
         run: |
