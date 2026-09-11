@@ -1,0 +1,55 @@
+name: Build Theos Tweak
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+env:
+  THEOS: /opt/theos
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y build-essential fakeroot perl rsync git curl file unzip
+
+      - name: Install Theos
+        run: |
+          sudo git clone --recursive https://github.com/theos/theos.git $THEOS
+          sudo chown -R $USER:$USER $THEOS
+
+      - name: Install ldid
+        run: |
+          curl -L -o /tmp/ldid https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus2/ldid_linux_x86_64
+          sudo mv /tmp/ldid /usr/local/bin/ldid
+          sudo chmod +x /usr/local/bin/ldid
+
+      - name: Download iOS SDK
+        run: |
+          curl -LO https://github.com/theos/sdks/archive/refs/heads/master.zip
+          unzip -q master.zip -d /tmp/
+          cp -r /tmp/sdks-master/iPhoneOS14.5.sdk $THEOS/sdks/ 2>/dev/null || cp -r /tmp/sdks-master/iPhoneOS*.sdk $THEOS/sdks/
+          rm -rf master.zip /tmp/sdks-master
+
+      - name: Build tweak
+        run: |
+          export THEOS=$THEOS
+          make clean
+          make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
+
+      - name: Upload deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VolumeDoubleTapCamera-deb
+          path: packages/*.deb
+          if-no-files-found: error

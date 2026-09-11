@@ -1,0 +1,9 @@
+Package: com.example.volumedoubletapcamera
+Name: VolumeDoubleTapCamera
+Version: 1.0.0
+Architecture: iphoneos-arm64
+Description: Double tap Volume Up button to launch the native Camera app. Single tap and long press remain unaffected.
+Maintainer: YourName
+Author: YourName
+Section: Tweaks
+Depends: mobilesubstrate
